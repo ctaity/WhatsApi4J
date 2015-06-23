@@ -1,266 +1,125 @@
 package net.sumppen.whatsapi4j.example;
 
-import java.io.Console;
-import java.io.File;
-import java.io.UnsupportedEncodingException;
-import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-
-import net.sumppen.whatsapi4j.EventManager;
-import net.sumppen.whatsapi4j.MessageProcessor;
-import net.sumppen.whatsapi4j.SyncType;
-import net.sumppen.whatsapi4j.WhatsApi;
-import net.sumppen.whatsapi4j.WhatsAppException;
-
+import net.sumppen.whatsapi4j.*;
 import org.json.JSONException;
-import org.json.JSONObject;
+
+import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Example application
  * Launch with: java -cp target/dependency/*:target/whatsapi4j-1.0.0-SNAPSHOT.jar net.sumppen.whatsapi4j.example.ExampleApplication 358401122333 'mypassword' 'mytestapplication' 'My Test Account'
- * @author kim
  *
+ * @author kim
  */
 public class ExampleApplication {
-	private enum WhatsAppCommand {
-		send,request,register,status,text,sendText,image,sendImage,video,sendVideo,groups,sync,help,exit
-	}
+    public static boolean running = true;
+    private static final String RELEASE_TOKEN_CONST = "PdA2DJyKoUrwLw1Bg6EIhzh502dF9noR9uFCllGk";
+    private static final String RELEASE_TIME = "1419900749520";
+    private static final int PORT = 443;                                      // The port of the WhatsApp server.
+    private final int TIMEOUT_SEC = 2;                                  // The timeout for the connection with the WhatsApp servers.
+    private final String WHATSAPP_CHECK_HOST = "v.whatsapp.net/v2/exist";  // The check credentials host.
+    public static final String WHATSAPP_GROUP_SERVER = "g.us";                   // The Group server hostname
+    private final String WHATSAPP_HOST = "c.whatsapp.net";                 // The hostname of the WhatsApp server.
+    private final String WHATSAPP_REGISTER_HOST = "v.whatsapp.net/v2/register"; // The register code host.
+    private final String WHATSAPP_REQUEST_HOST = "v.whatsapp.net/v2/code";      // The request code host.
+    public static final String WHATSAPP_SERVER = "s.whatsapp.net";               // The hostname used to login/send messages.
+    private static final String WHATSAPP_DEVICE = "S40";                      // The device name.
+    private static final String WHATSAPP_VER = "2.12.81";                // The WhatsApp version.
+    private final String WHATSAPP_USER_AGENT = "WhatsApp/2.12.81 S40Version/14.26 Device/Nokia302";// User agent used in request/registration code.
+    private final String WHATSAPP_VER_CHECKER = "https://coderus.openrepos.net/whitesoft/whatsapp_version"; // Check WhatsApp version
 
-	public static boolean running = true;
-	
-	public static void main(String[] args) {
-		boolean loggedIn = false;
-		String filename = "exampleapplication.log";
-		System.setProperty("org.slf4j.simpleLogger.logFile", filename);
-		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
-		System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
-		if(args.length != 4) {
-			System.out.println("Usage: ExampleApplication <username> <password> <id> <nick>");
-			System.exit(1);
-		}
-		Console cons = System.console();
-		if(cons == null) {
-			System.out.println("No console found. Aborting");
-			System.exit(1);
-		}
 
-		String username = args[0];
-		String password = args[1];
-		if(password.length() == 0) {
-			password = null;
-		}
-		String identity = args[2];
-		if(identity.length() == 0) {
-			identity = null;
-		}
-		String nickname = args[3];
-		WhatsApi wa = null;
-		try {
-			wa = new WhatsApi(username, identity, nickname);
+    private enum WhatsAppCommand {
+        send, request, register, status, text, sendText, image, sendImage, video, sendVideo, groups, sync, help, exit
+    }
 
-			EventManager eventManager = new ExampleEventManager();
-			wa.setEventManager(eventManager );
-			MessageProcessor mp = new ExampleMessageProcessor();
-			wa.setNewMessageBind(mp);
-			if(!wa.connect()) {
-				System.out.println("Failed to connect to WhatsApp");
-				System.exit(1);
-			}
-			if(password != null) {
-				wa.loginWithPassword(password);
-				loggedIn = true;
-			}
-			String cmd;
-//			ExampleMessagePoller poller = new ExampleMessagePoller(wa);
-//			poller.start();
-			System.out.print("$ ");
-			while(running && (cmd=cons.readLine()) != null) {
-				try {
-					WhatsAppCommand wac = WhatsAppCommand.valueOf(cmd);
-					switch(wac) {
-					case sync:
-						if(loggedIn) {
-							syncContacts(cons,wa);
-						} else {
-							System.out.println("Not logged in!");
-						}
-						break;
-					case send:
-					case text:
-					case sendText:
-						if(loggedIn) {
-							sendTextMessage(cons,wa);
-						} else {
-							System.out.println("Not logged in!");
-						}
-						break;
-					case image:
-					case sendImage:
-						if(loggedIn) {
-							sendImageMessage(cons,wa);
-						} else {
-							System.out.println("Not logged in!");
-						}
-						break;
-					case video:
-					case sendVideo:
-						if(loggedIn) {
-							sendVideoMessage(cons,wa);
-						} else {
-							System.out.println("Not logged in!");
-						}
-						break;
-					case status:
-						if(loggedIn) {
-							setStatus(cons,wa);
-						} else {
-							System.out.println("Not logged in!");
-						}
-						break;
-					case request:
-						if(!loggedIn) {
-							sendRequest(wa);
-							running = false;
-						} else {
-							System.out.println("Already logged in!");
-						}
-						break;
-					case register:
-						if(!loggedIn) {
-							sendRegister(cons,wa);
-							running = false;
-						} else {
-							System.out.println("Already logged in!");
-						}
-						break;
-					case groups:
-						if(loggedIn) {
-							getGroups(cons,wa);
-						} else {
-							System.out.println("Not logged in!");
-						}
-						break;
-					case exit:
-						running = false;
-						break;
-					case help:
-						System.out.println("Allowed commands: "+Arrays.toString(WhatsAppCommand.values()));
-						break;
-					default: 
-						System.out.println("Unknown command: "+cmd);
-					}
-				} catch (IllegalArgumentException e) {
-					if(cmd.length() > 0)
-						System.out.println("Unknown command: "+cmd);
-					e.printStackTrace();
-				}
-				System.out.print("$ ");
-			}
-//			poller.setRunning(false);
-			System.out.println("Done! Logging out");
-			wa.disconnect();
-		} catch (Exception e) {
-			System.out.println("Caught exception: "+e.getMessage());
-			e.printStackTrace();
-			if(wa != null) {
-				wa.disconnect();
-			}
-			System.exit(1);
-		}
-	}
 
-	private static void syncContacts(Console cons, WhatsApi wa) throws WhatsAppException {
-		List<String> contacts = new LinkedList<String>();
-		String contact;
-		do {
-			System.out.print("Add contact (finish with empty): ");
-			contact = cons.readLine();
-			contacts.add(contact);
-		} while(contact.length() > 0);
-		wa.sendSync(contacts, null, SyncType.DELTA_BACKGROUND, 0, true);
-		System.out.println("Sync sent");
-	}
+    public static void main(String[] args) throws WhatsAppException, IOException, NoSuchAlgorithmException, InterruptedException, EncodeException, InvalidKeyException, IncompleteMessageException, InvalidTokenException, JSONException, DecodeException, InvalidMessageException, InvalidKeySpecException {
+        String username = "5491169108537";
+        String password = "A9DHQXAFJkl1oPQUVS+K32CkzOQ=";
+        String identity = "wtv";
+        String nickname = "wtv";
 
-	private static void getGroups(Console cons, WhatsApi wa) throws WhatsAppException {
-		wa.getGroups();
-	}
+//        String filename = "/tmp/exampleapplication.log";
+//        System.setProperty("org.slf4j.simpleLogger.logFile", filename);
+        System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+        System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
 
-	private static void setStatus(Console cons, WhatsApi wa) throws WhatsAppException {
-		System.out.print("Status: ");
-		String status = cons.readLine();
-		if(status == null || status.length() == 0) {
-			return;
-		}
-		wa.sendStatusUpdate(status);
-		System.out.println("Ok");
-	}
+        WhatsApi wa = new WhatsApi(username, identity, nickname);
+        wa.connect();
+        wa.loginWithPassword(password);
 
-	private static void sendRegister(Console cons, WhatsApi wa) throws JSONException, WhatsAppException {
-		System.out.print("Code: ");
-		String code = cons.readLine();
-		if(code == null || code.length() == 0) {
-			return;
-		}
-		JSONObject res = wa.codeRegister(code);
-		System.out.println(res.toString(2));
-	}
 
-	private static void sendRequest(WhatsApi wa) throws WhatsAppException, JSONException, UnsupportedEncodingException {
-		JSONObject resp = wa.codeRequest("sms", null, null);
-		System.out.println("Registration sent: "+resp.toString(2));
-	}
+        System.in.read();
+        System.out.println("ME FUIIIIIIIIII");
 
-	private static void sendTextMessage(Console cons, WhatsApi wa) throws WhatsAppException {
-		System.out.print("To: ");
-		String to = cons.readLine();
-		if(to == null || to.length() == 0) {
-			return;
-		}
-		wa.sendMessageComposing(to);
-		System.out.print("Message: ");
-		String message = cons.readLine();
-		wa.sendMessagePaused(to);
-		if(message == null || message.length() == 0) {
-			return;
-		}
-		String res = wa.sendMessage(to, message);
-		System.out.println(res);
-	}
-	
-	private static void sendImageMessage(Console cons, WhatsApi wa) throws WhatsAppException, URISyntaxException {
-		System.out.print("To: ");
-		String to = cons.readLine();
-		if(to == null || to.length() == 0) {
-			return;
-		}
-		System.out.print("Caption: ");
-		String message = cons.readLine();
-		if(message == null || message.length() == 0) {
-			return;
-		}
-		File image = new File("exampleData/bananas.jpg");
-		File preview = new File("exampleData/bananas-preview.jpg");
-		JSONObject res = wa.sendMessageImage(to, image, preview, message);
-		System.out.println(res);
-	}
-	
-	private static void sendVideoMessage(Console cons, WhatsApi wa) throws WhatsAppException {
-		System.out.print("To: ");
-		String to = cons.readLine();
-		if(to == null || to.length() == 0) {
-			return;
-		}
-		System.out.print("Caption: ");
-		String message = cons.readLine();
-		if(message == null || message.length() == 0) {
-			return;
-		}
-		File video = new File("exampleData/video.mp4");
-		File preview = new File("exampleData/video-preview.jpg");
-		JSONObject res = wa.sendMessageVideo(to, video,preview,message);
-		System.out.println(res);
-	}
 
+//        Environment.initializeIfEmpty();
+//        TcpClient<Buffer, Buffer> client = NetStreams.tcpClient("c.whatsapp.net", 443);
+//        String resource = ExampleApplication.WHATSAPP_DEVICE + "-" + ExampleApplication.WHATSAPP_VER + "-" + ExampleApplication.PORT;
+//       //este putillo mantiene la data hasta que se puede procesar
+//        RingBufferProcessor<Buffer> stream = RingBufferProcessor.create();
+//        BinTreeNodeWriter writer = new BinTreeNodeWriter();
+//
+//       boolean connected = client.start(conn -> {
+//            conn.log("conn").consume(System.out::println);
+//            //ni idea porque el wrap, pero bueno funciona asi. capcaity 1 para que los mande al toque
+//            return conn.writeBufferWith(Streams.wrap(stream).capacity(1));
+//        }).awaitSuccess(10, TimeUnit.SECONDS);
+//
+//        writer.resetKey();
+//        byte[] data = writer.startStream(WHATSAPP_SERVER, resource);
+//
+//        stream.onNext(Buffer.wrap(data));
+//        stream.onNext(Buffer.wrap(data));
+//        stream.onNext(Buffer.wrap(data));
+////
+//////        ProtocolNode feat = createFeaturesNode(false);
+////        ProtocolNode auth = createAuthNode();
+//
+//        Thread.sleep(2000);
+//
+//        stream.onNext(Buffer.wrap(data));
+//        stream.onNext(Buffer.wrap(data));
+//
+//
+
+    }
+
+
+//        boolean loggedIn = false;
+
+//
+//        String username = "5491163977272";
+//        String password = "79dL0X3Rx2oA8FfMc01yfHBEzlo=";
+//        String identity = "mytestapplication";
+//        String nickname = "Guardia";
+//
+//        WhatsApi wa = null;
+//        try {
+//            wa = new WhatsApi(username, identity, nickname);
+//
+//            EventManager eventManager = new ExampleEventManager();
+//            wa.setEventManager(eventManager);
+//            MessageProcessor mp = new ExampleMessageProcessor();
+//            wa.setNewMessageBind(mp);
+//            if (!wa.connect()) {
+//                System.out.println("Failed to connect to WhatsApp");
+//                System.exit(1);
+//            }
+//            if (password != null) {
+//                wa.loginWithPassword(password);
+//                loggedIn = true;
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
 }
+
+
+

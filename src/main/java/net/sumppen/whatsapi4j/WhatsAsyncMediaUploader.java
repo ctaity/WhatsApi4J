@@ -14,9 +14,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
-public class WhatsMediaUploader {
+/**
+ * Created by taity on 6/21/15.
+ */
+public class WhatsAsyncMediaUploader {
 
-    private static final Logger log = LoggerFactory.getLogger(WhatsMediaUploader.class);
+    private static final Logger log = LoggerFactory.getLogger(WhatsAsyncMediaUploader.class);
 
     public static JSONObject pushFile(ProtocolNode uploadResponseNode, Map<String, Object> messageContainer, File mediaFile, String selfJID) throws NoSuchAlgorithmException, IOException {
         //get vars
@@ -175,5 +178,4 @@ public class WhatsMediaUploader {
         }
         return sb.toString();
     }
-
 }

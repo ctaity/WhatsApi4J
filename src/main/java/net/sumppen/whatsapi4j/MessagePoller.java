@@ -16,15 +16,15 @@ public class MessagePoller extends Thread {
 
 	@Override
 	public void run() {
-		log.info("Message poller starting");
-		while(isRunning())
-		try {
-			wa.pollMessages();
-		} catch (SocketTimeoutException e) {
-		} catch (Exception e) {
-			log.error("Message poller caught exception: "+e.getMessage(), e);
-		}
-		log.info("Message poller finishing");
+//		log.info("Message poller starting");
+//		while(isRunning())
+//		try {
+//			//wa.pollMessages();
+//		} catch (SocketTimeoutException e) {
+//		} catch (Exception e) {
+//			log.error("Message poller caught exception: "+e.getMessage(), e);
+//		}
+//		log.info("Message poller finishing");
 	}
 
 	public boolean isRunning() {

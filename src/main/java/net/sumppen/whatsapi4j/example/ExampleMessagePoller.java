@@ -14,13 +14,13 @@ class ExampleMessagePoller extends Thread {
 
 	@Override
 	public void run() {
-		while(isRunning())
-		try {
-			wa.pollMessages();
-		} catch (SocketTimeoutException e) {
-		} catch (Exception e) {
-			System.err.println("Message poller caught exception: "+e.getMessage());
-		}
+//		while(isRunning())
+//		try {
+//			wa.pollMessages();
+//		} catch (SocketTimeoutException e) {
+//		} catch (Exception e) {
+//			System.err.println("Message poller caught exception: "+e.getMessage());
+//		}
 	}
 
 	public boolean isRunning() {

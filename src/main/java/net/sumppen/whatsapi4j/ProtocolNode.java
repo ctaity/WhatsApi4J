@@ -1,5 +1,7 @@
 package net.sumppen.whatsapi4j;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import net.sumppen.whatsapi4j.tools.BinHex;
 import net.sumppen.whatsapi4j.tools.CharsetUtils;
 
@@ -13,12 +15,15 @@ public class ProtocolNode {
     private byte[] data;
     private String tag;
 
-    public ProtocolNode(String tag, Map<String, String> attributes,
-                        List<ProtocolNode> nodes, byte[] data) {
+    public ProtocolNode(String tag, Map<String, String> attributes, List<ProtocolNode> nodes, byte[] data) {
         this.attributes = attributes;
         this.tag = tag;
         this.children = nodes;
         this.data = data;
+    }
+
+    public ProtocolNode(String tag) {
+        this(tag, Maps.newHashMap(), Lists.newLinkedList(), null);
     }
 
     public Map<String, String> getAttributes() {
@@ -96,13 +101,13 @@ public class ProtocolNode {
         String lt = "<";
         String gt = ">";
         sb.append(lt + tag);
-        if (attributes != null) {
+        if (hasAttributes()) {
             for (String key : attributes.keySet()) {
                 sb.append(" " + key + "=\"" + attributes.get(key) + "\"");
             }
         }
         sb.append(gt);
-        if (data != null && data.length > 0) {
+        if (hasData()) {
             if (data.length < 1024) {
                 sb.append(BinHex.bin2hex(data));
             } else {
@@ -111,7 +116,7 @@ public class ProtocolNode {
                 sb.append(" byte data");
             }
         }
-        if (children != null) {
+        if (hasChilden()) {
             sb.append('\n');
             for (ProtocolNode child : children) {
                 sb.append(child.toString());
@@ -138,4 +143,17 @@ public class ProtocolNode {
         return CharsetUtils.toString(data);
     }
 
+    public boolean hasAttributes() {
+        return attributes != null && !attributes.isEmpty();
+
+    }
+
+    public boolean hasChilden() {
+        return this.children != null && !children.isEmpty();
+    }
+
+    public boolean hasData() {
+        return (data != null && data.length > 0);
+
+    }
 }
